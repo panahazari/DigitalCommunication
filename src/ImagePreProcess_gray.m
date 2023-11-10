@@ -13,8 +13,8 @@ X = X(1:m,1:n);
 Z = im2double(X);
 
 % This command will show all 3 layers of the colored image. 
-figure;
-imshow(Z);
+%figure;
+%imshow(Z);
 
 %% take DCT in 8x8 blocks and quantize it into 8-bit or 16-bit numbers
 fun = @dct2;
