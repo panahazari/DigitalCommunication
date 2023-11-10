@@ -91,29 +91,29 @@ received_srrc = modulated_SRRC_after_channel + noise_srrc;
 %% Eye Diagrams for HSPM:
 
 % Before convolving with channel:
-eyediagram(modulated_hspm, 32, 1, 16);
+eyediagram(modulated_hspm(32*10 + 1:end-32), 32, 1, 16);
 title('Eye diagram for the modulated signal');
 
 % After convolving with the channel"
-eyediagram(modulated_hspm_after_channel, 32, 1, 16);
+eyediagram(modulated_hspm_after_channel(32*10 + 1:end-32), 32, 1, 16);
 title('Eye diagram for the modulated signal with channel');
 
 % After adding noise:
-eyediagram(received_hspm, 32, 1, 16);
+eyediagram(received_hspm(32*10 + 1:end-32), 32, 1, 16);
 title('Eye diagram for the modulated signal with noise');
 
 %% Eye Diagrams for SRRC:
 
 % Before convolving with channel:
-eyediagram(modulated_srrc(32*10:end-32*10), 2*32);
+eyediagram(modulated_srrc(32*10 + 1:end-32*10), 32, '-y');
 title('Eye diagram for the modulated signal');
 
 % After convolving with the channel"
-eyediagram(modulated_SRRC_after_channel(32*10:end-32*10), 2*32);
+eyediagram(modulated_SRRC_after_channel(32*10 + 1:end-32*10), 32);
 title('Eye diagram for the modulated signal with channel');
 
 % After adding noise:
-eyediagram(received_srrc(32*10:end-32*10), 2*32);
+eyediagram(received_srrc(32*10 + 1:end-32*10), 32);
 title('Eye diagram for the modulated signal with noise');
 
 %% Q1
