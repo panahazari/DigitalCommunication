@@ -4,14 +4,14 @@ clc;
 clear all;
 
 qbit = 8;
-file_name = '../images/image2.jpg';
+file_name = '../images/image1.png';
 
 [Ztres,r,c,m,n,minval,maxval] = ImagePreProcess_gray(file_name, qbit);
 
 
 %%
 
-N = 1;
+N = 10;
 [nubmerofGroups, BitStreams] = Convert2Bitstream(N, Ztres, m, n, qbit);
 
 
@@ -19,7 +19,8 @@ N = 1;
 
 T = 1;  % Replace with your desired duration between impulses (in seconds)
 sn = 32;  % Replace with your desired number of samples between impulses
-impulse_train = bit_sequence_to_impulses(BitStreams(1, 1:100), sn);
+impulse_train = bit_sequence_to_impulses(BitStreams, sn);
+%impulse_train = upsample([1 0 0 1 1], 32);
 figure;
 stem([0:T/sn:length(impulse_train)/sn - T/sn], impulse_train, 'LineWidth', 2);
 title('Impulse Train with Sample Numbers');
@@ -45,18 +46,22 @@ plot(0:T/sn:length(modulated_hspm)/sn - T/sn, modulated_hspm);
 %%
 
 %% Modulating impulses with SRRC pulse
-% alpha = 0.5;
-% K = 6;
-% pulse = -K*T:Ts:K*T;
-% srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
-% srrc_pulse = srrc_pulse./norm(srrc_pulse);
-% srrc(pulse) = srrc_pulse;
-% srrc_pulse = sigshift(srrc_pulse, k);
-% % plot(pulse, srrc_pulse);
-% lated_srrc = conv(srrc_pulse, impulse_train);
-% figure;
-% plot(-K:T/sn:length(modulated_srrc)/sn - T/sn, modulated_srrc);
+alpha = 0.5;
+K = 4;
+pulse = -K*T:Ts:K*T -Ts;
+srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
 
+figure
+plot(srrc_pulse);
+figure
+freqz(srrc_pulse)
+
+% plot(pulse, srrc_pulse);
+modulated_srrc = conv(srrc_pulse, impulse_train);
+
+figure
+plot(modulated_srrc)
 
 %% Channel:
 channel_t = Channel1(T, 32);
@@ -68,20 +73,20 @@ stem(t, channel_t);
 
 modulated_hspm_after_channel = conv(modulated_hspm, channel_t);
 
-%modulated_SRRC_after_channel = conv(modulated_srrc)
+modulated_SRRC_after_channel = conv(modulated_srrc, channel_t);
 
 t = 0:1/sn:length(modulated_hspm_after_channel)/sn - 1/sn;
 %plot(t, modulated_hspm_after_channel);
 
 %% Noise
 sigma = 0.1;
-sigma = [0.01, 0.1, 0.5];
+sigma = [0.005, 0.1, 0.5];
 
 noise_hspm = sigma(1)*randn(size(modulated_hspm_after_channel));
 received_hspm = modulated_hspm_after_channel + noise_hspm;
 
-% noise_srrc = sigma*randn(size(modulated_SRRC_after_channel));
-% received_srrc = modulated_SRRC_after_channel + noise_hspm;
+noise_srrc = sigma(1)*randn(size(modulated_SRRC_after_channel));
+received_srrc = modulated_SRRC_after_channel + noise_srrc;
 
 %% Eye Diagrams for HSPM:
 
@@ -97,6 +102,20 @@ title('Eye diagram for the modulated signal with channel');
 eyediagram(received_hspm, 32, 1, 16);
 title('Eye diagram for the modulated signal with noise');
 
+%% Eye Diagrams for SRRC:
+
+% Before convolving with channel:
+eyediagram(modulated_srrc(32*10:end-32*10), 2*32);
+title('Eye diagram for the modulated signal');
+
+% After convolving with the channel"
+eyediagram(modulated_SRRC_after_channel(32*10:end-32*10), 2*32);
+title('Eye diagram for the modulated signal with channel');
+
+% After adding noise:
+eyediagram(received_srrc(32*10:end-32*10), 2*32);
+title('Eye diagram for the modulated signal with noise');
+
 %% Q1
 
 % HSPM
@@ -105,9 +124,9 @@ hspm_pulse = A1*sin(pi*pulse/T);
 L = length(hspm_pulse);
 figure;
 plot(pulse,hspm_pulse,'LineWidth',1.5)
-xlabel({'Time $(t)$'},'Interpreter','latex','FontSize',14)
-ylabel({'$g_1(t)$'},'Interpreter','latex','FontSize',14)
-title('HSPM Pulse','Interpreter','latex','FontSize',14);
+xlabel('Time (t)');
+ylabel('g_1(t)');
+title('HSPM Pulse');
 grid on;
 
 % Plot the magnitude spectrum
@@ -117,73 +136,29 @@ f = Fs*(-n/2:n/2-1)/n;
 hspm_pulse_freq = fft(hspm_pulse,n);
 hspm_pulse_freq = fftshift(hspm_pulse_freq);
 figure
-freqz(hspm_pulse)
-title('Freq. resp. of SSRC Pulse')
-
-plot(f,10*log10(abs(hspm_pulse_freq)),'LineWidth',1.5);
-xlabel({'Frequency (Hz)'},'Interpreter','latex','FontSize',14);
-ylabel({'$|G_1(f)|$'},'Interpreter','latex','FontSize',14)
-title('Magnitude of the Frequency reponse of HSPM pulse', 'Interpreter', 'latex','FontSize',14);
-%xlim([-30 30])
-grid on;
-
-% Plot the angle spectrum
-n = 2^nextpow2(L);
-Fs = 1/Ts;
-f = Fs*(-n/2:n/2-1)/n;
-hspm_pulse_freq = fft(hspm_pulse,n);
-hspm_pulse_freq = fftshift(hspm_pulse_freq);
-figure
-plot(f,angle(hspm_pulse_freq),'LineWidth',1.5);
-xlabel({'Frequency (Hz)'},'Interpreter','latex','FontSize',14);
-ylabel({'$\angle G_1(f)$'},'Interpreter','latex','FontSize',14)
-title('Angle of the Frequency reponse of HSPM pulse', 'Interpreter', 'latex','FontSize',14);
-%xlim([-30 30])
-grid on;
+freqz(hspm_pulse);
 
 
-%% SRRC
+
+%% Q1 SRRC
 alpha = 0.5;
 K = 6;
-pulse = -K*T:Ts:K*T;
+pulse = -K*T:Ts:K*T - Ts;
 
-srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
-srrc_pulse = srrc_pulse/norm(srrc_pulse);
+srrc_pulse = 10*rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+% srrc_pulse = srrc_pulse/norm(srrc_pulse);
 L = length(srrc_pulse);
 figure;
 plot(pulse, srrc_pulse,'LineWidth',1.5)
-xlabel({'Time $(t)$'},'Interpreter','latex','FontSize',14)
-ylabel({'$g_2(t)$'},'Interpreter','latex','FontSize',14)
-title(['SRRC Pulse k = ' int2str(K) , '  $\alpha$ = ', num2str(alpha)],'Interpreter','latex','FontSize',14);
-grid on;
+xlabel('Time (t)')
+ylabel('g_2(t)')
+title(['SRRC Pulse k = ' int2str(K) , '  a = ', num2str(alpha)]);
+grid on; 
 
-% Plot the magnitude spectrum
-n = 2^nextpow2(L);
-Fs = 1/Ts;
-f = Fs*(-n/2:n/2-1)/n;
-srrc_pulse_freq = fft(srrc_pulse,n);
-srrc_pulse_freq = fftshift(srrc_pulse_freq);
-figure
-plot(f,10*log10(abs(srrc_pulse_freq)),'LineWidth',1.5);
-xlabel({'Frequency (Hz)'},'Interpreter','latex','FontSize',14);
-ylabel({'$|G_2(f)|$'},'Interpreter','latex','FontSize',14)
-title(['Magnitude Frequency reponse of SRRC pulse  k = ' int2str(K) , '  $\alpha$ = ', num2str(alpha)], 'Interpreter', 'latex','FontSize',14);
-%xlim([-20 20])
-grid on;
+figure;
+freqz(srrc_pulse);
 
-% Plot the angle spectrum
-n = 2^nextpow2(L);
-Fs = 1/Ts;
-f = Fs*(-n/2:n/2-1)/n;
-srrc_pulse_freq = fft(srrc_pulse,n);
-srrc_pulse_freq = fftshift(srrc_pulse_freq);
-figure
-plot(f,angle(srrc_pulse_freq),'LineWidth',1.5);
-xlabel({'Frequency (Hz)'},'Interpreter','latex','FontSize',14);
-ylabel({'$\angle G_2(f)$'},'Interpreter','latex','FontSize',14)
-title(['Angle Frequency reponse of SRRC pulse  k = ' int2str(K) , '  $\alpha$ = ', num2str(alpha)], 'Interpreter', 'latex','FontSize',14);
-%xlim([-20 20])
-grid on;
 
 %% Q2
 
@@ -208,6 +183,19 @@ grid on;
 % Eye Diagram for HSPM:
 
 % Eye Diagram for SRRC:
+
+%% Q5
+
+% Frequency response of the channel
+
+% impulse response of the channel
+
+
+
+
+%% Q6:
+
+% HSPM Channel Output Eye Diagram
 
 
  
