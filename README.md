@@ -1,2 +1,2 @@
 # HDTV
- Image Tranmission 
+ Image Transmission 
