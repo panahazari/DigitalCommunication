@@ -4,14 +4,14 @@ clc;
 clear all;
 
 qbit = 8;
-file_name = '../images/image2.jpg';
+file_name = '../images/image1.png';
 
 [Ztres,r,c,m,n,minval,maxval] = ImagePreProcess_gray(file_name, qbit);
 
 
 %%
 
-N = 1;
+N = 10;
 [nubmerofGroups, BitStreams] = Convert2Bitstream(N, Ztres, m, n, qbit);
 
 
@@ -19,7 +19,8 @@ N = 1;
 
 T = 1;  % Replace with your desired duration between impulses (in seconds)
 sn = 32;  % Replace with your desired number of samples between impulses
-impulse_train = bit_sequence_to_impulses(BitStreams(1, 1:10), sn);
+impulse_train = bit_sequence_to_impulses(BitStreams, sn);
+%impulse_train = upsample([1 0 0 1 1], 32);
 figure;
 stem([0:T/sn:length(impulse_train)/sn - T/sn], impulse_train, 'LineWidth', 2);
 title('Impulse Train with Sample Numbers');
@@ -46,16 +47,21 @@ plot(0:T/sn:length(modulated_hspm)/sn - T/sn, modulated_hspm);
 
 %% Modulating impulses with SRRC pulse
 alpha = 0.5;
-K = 6;
-pulse = -K*T:Ts:K*T;
-srrc_pulse = rcosdesign(alpha, 2, 32, 'sqrt');
-srrc_pulse = srrc_pulse./norm(srrc_pulse);
+K = 4;
+pulse = -K*T:Ts:K*T -Ts;
+srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+
+figure
+plot(srrc_pulse);
+figure
+freqz(srrc_pulse)
 
 % plot(pulse, srrc_pulse);
 modulated_srrc = conv(srrc_pulse, impulse_train);
-figure
-plot( srrc_pulse);
 
+figure
+plot(modulated_srrc)
 
 %% Channel:
 channel_t = Channel1(T, 32);
@@ -67,33 +73,49 @@ stem(t, channel_t);
 
 modulated_hspm_after_channel = conv(modulated_hspm, channel_t);
 
-%modulated_SRRC_after_channel = conv(modulated_srrc)
+modulated_SRRC_after_channel = conv(modulated_srrc, channel_t);
 
 t = 0:1/sn:length(modulated_hspm_after_channel)/sn - 1/sn;
 %plot(t, modulated_hspm_after_channel);
 
 %% Noise
 sigma = 0.1;
-sigma = [0.01, 0.1, 0.5];
+sigma = [0.005, 0.1, 0.5];
 
 noise_hspm = sigma(1)*randn(size(modulated_hspm_after_channel));
 received_hspm = modulated_hspm_after_channel + noise_hspm;
 
-% noise_srrc = sigma*randn(size(modulated_SRRC_after_channel));
-% received_srrc = modulated_SRRC_after_channel + noise_hspm;
+noise_srrc = sigma(1)*randn(size(modulated_SRRC_after_channel));
+received_srrc = modulated_SRRC_after_channel + noise_srrc;
 
 %% Eye Diagrams for HSPM:
 
 % Before convolving with channel:
-eyediagram(modulated_hspm, 32, 1, 16);
+eyediagram(modulated_hspm(32*10 + 1:end-32), 32, 1, 16);
 title('Eye diagram for the modulated signal');
 
 % After convolving with the channel"
-eyediagram(modulated_hspm_after_channel, 32, 1, 16);
+eyediagram(modulated_hspm_after_channel(32*10 + 1:end-32), 32, 1, 16);
 title('Eye diagram for the modulated signal with channel');
 
 % After adding noise:
-eyediagram(received_hspm, 32, 1, 16);
+eyediagram(received_hspm(32*10 + 1:end-32), 32, 1, 16);
+title('Eye diagram for the modulated signal with noise');
+
+%% Eye Diagrams for SRRC:
+
+% Before convolving with channel:
+fig = eyediagram(modulated_srrc(32*10 + 1:end-32*10), 32, 32, 'b-');
+set(gca, 'Color','w', 'XColor','black', 'YColor','black');
+set(fig, 'Color', 'white');
+title('Eye diagram for the modulated signal', 'Color', 'black');
+
+% After convolving with the channel"
+eyediagram(modulated_SRRC_after_channel(32*10 + 1:end-32*10), 32);
+title('Eye diagram for the modulated signal with channel');
+
+% After adding noise:
+eyediagram(received_srrc(32*10 + 1:end-32*10), 32);
 title('Eye diagram for the modulated signal with noise');
 
 %% Q1
@@ -123,10 +145,11 @@ freqz(hspm_pulse);
 %% Q1 SRRC
 alpha = 0.5;
 K = 6;
-pulse = -K*T:Ts:K*T;
+pulse = -K*T:Ts:K*T - Ts;
 
-srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
-srrc_pulse = srrc_pulse/norm(srrc_pulse);
+srrc_pulse = 10*rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+% srrc_pulse = srrc_pulse/norm(srrc_pulse);
 L = length(srrc_pulse);
 figure;
 plot(pulse, srrc_pulse,'LineWidth',1.5)

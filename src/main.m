@@ -105,8 +105,10 @@ title('Eye diagram for the modulated signal with noise');
 %% Eye Diagrams for SRRC:
 
 % Before convolving with channel:
-eyediagram(modulated_srrc(32*10 + 1:end-32*10), 32, '-y');
-title('Eye diagram for the modulated signal');
+fig = eyediagram(modulated_srrc(32*10 + 1:end-32*10), 32, 32, 0);
+% set(gca, 'Color','w', 'XColor','black', 'YColor','black');
+% set(fig, 'Color', 'white');
+title('Eye diagram for the modulated signal', 'Color', 'black');
 
 % After convolving with the channel"
 eyediagram(modulated_SRRC_after_channel(32*10 + 1:end-32*10), 32);
