@@ -1,0 +1,37 @@
+function [output] = ZF_Equalizer(signal, channel)
+
+% N = length(signal);
+% 
+% channel_f = fft(channel, N);
+% signal_f = fft(signal, N);
+% 
+% zf_eq = 1./channel_f;
+% 
+% % zf_time = ifft(zf_eq,N);
+% 
+% 
+% output_f = signal_f.*zf_eq;
+% 
+% output = ifft(output_f, length(output_f));
+% 
+% 
+% %output = conv(signal,zf_time)
+
+
+%% 
+
+% Define channel response (example)
+channel_response = channel;
+
+% Create a random input signal
+input_signal = signal;
+
+% Apply the channel response to the input signal
+received_signal = filter(channel_response, 1, input_signal);
+
+% Zero-forcing equalizer
+equalizer_coefficients = inv(channel_response);
+
+% Apply the zero-forcing equalizer to the received signal
+equalized_signal = filter(equalizer_coefficients, 1, received_signal);
+
