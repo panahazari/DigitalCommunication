@@ -70,7 +70,7 @@ modulated_srrc = conv(srrc_pulse, impulse_train);
 % plot(modulated_srrc)
 
 %% Channel:
-channel_t = Channel1(T, 32);
+channel_t = Channel2(T, 32);
 t = 0:1/sn:length(channel_t)/sn - 1/sn;
 
 % figure;
@@ -91,7 +91,7 @@ t = 0:1/sn:length(modulated_hspm_after_channel)/sn - 1/sn;
 
 %% Noise
 sigma = 0.1;
-sigma = [0.005, 0.03, 0];
+sigma = [0.005, 0.01, 0];
 
 noise_hspm = sigma(2)*randn(size(modulated_hspm_after_channel));
 received_hspm = modulated_hspm_after_channel + noise_hspm;
@@ -188,20 +188,20 @@ title(['Recovered Image using Zero Forcing HSPM, Noise power = ', num2str(sigma(
 resconstrucedZtres = reshape(decimal_mmse_hspm, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(["Recovered Image using MMSE HSPM, Noise power = ", num2str(sigma(2)),  ", SNR = ", num2str(SNR_MMSE_HSPM)]);
+title(['Recovered Image using MMSE HSPM, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_MMSE_HSPM)]);
 
 % Recovering ZF SRRC:
 resconstrucedZtres = reshape(decimal_zf_srrc, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(["Recovered Image using Zero Forcing SRRC, Noise power = ", num2str(sigma(2)),  ", SNR = ", num2str(SNR_ZF_SRRC)]);
+title(['Recovered Image using Zero Forcing SRRC, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_ZF_SRRC)]);
 
 % Recovering MMSE SSRC:
 
 resconstrucedZtres = reshape(decimal_mmse_srrc, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(["Recovered Image using MMSE SRRC, Noise power = ", num2str(sigma(2)),  ", SNR = ", num2str(SNR_MMSE_SRRC)]);
+title(['Recovered Image using MMSE SRRC, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_MMSE_SRRC)]);
 
 
 
@@ -426,18 +426,18 @@ title(["Recovered Image using MMSE SRRC, Noise power = ", num2str(sigma(2)),  ",
 % title('Eye diagram for the output of matched filter for SRRC modulated signal', 'Color', 'black');
 % 
 % 
-% %% Q10
-% 
-% %% Zero Forcing 
-% h = [1, 1/2, 3/4, -2/7];
-% impulse = cat(1,1,zeros(800,1));
-% impulse_resp = ZF_Equalizer(impulse', h);
-% 
-% figure;
-% stem(impulse_resp);
-% 
-% figure;
-% freqz(impulse_resp);
+%% Q10
+
+%% Zero Forcing 
+h = [1, 1/2, 3/4, -2/7];
+impulse = cat(1,1,zeros(800,1));
+impulse_resp = ZF_Equalizer(impulse', h);
+
+figure;
+stem(impulse_resp);
+
+figure;
+freqz(impulse_resp);
 % 
 % %%
 % 

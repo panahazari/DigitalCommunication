@@ -4,14 +4,14 @@ clc;
 clear all;
 
 qbit = 8;
-file_name = '../images/image3.png';
+file_name = '../images/image2.jpg';
 
 [Ztres,r,c,m,n,minval,maxval] = ImagePreProcess_color(file_name, qbit);
-
+title('Original Image');
 
 %%
 
-N = 100000;
+N = 10;
 [nubmerofGroups, BitStreams] = Convert2Bitstream(N, Ztres, m, n, qbit);
 
 
@@ -43,6 +43,7 @@ hspm_pulse = hspm_pulse./norm(hspm_pulse);
 modulated_hspm = conv(hspm_pulse, impulse_train);
 modulated_hspm = modulated_hspm(1:length(modulated_hspm)-32);
 
+hspm_pulse_energy = sum(hspm_pulse.^2);
 % figure;
 % plot(0:T/sn:length(modulated_hspm)/sn - T/sn, modulated_hspm);
 
@@ -54,6 +55,8 @@ K = 6;
 pulse = -K*T:Ts:K*T -Ts;
 srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
 srrc_pulse = srrc_pulse(1:end-1);
+
+srrc_pulse_energy = sum(srrc_pulse.^2);
 
 % figure
 % plot(srrc_pulse);
@@ -67,17 +70,18 @@ modulated_srrc = conv(srrc_pulse, impulse_train);
 % plot(modulated_srrc)
 
 %% Channel:
-channel_t = Channel1(T, 32);
-t = 0:1/sn:length(channel_t)/sn - 1/sn;
+channel = Channel1();
+channel_power_gain = norm(channel);
+channel_t = upsample(channel, sn);
 
-% figure;
-% stem(t, channel_t);
-% xlabel('Time (t)');
-% ylabel('h(t)');
-% title('Channel impulse response');
+figure;
+stem(channel);
+xlabel('Time (t)');
+ylabel('h(t)');
+title('Channel impulse response');
 
-% figure;
-% freqz(channel_t);
+figure;
+freqz(channel);
 
 modulated_hspm_after_channel = conv(modulated_hspm, channel_t);
 
@@ -88,13 +92,16 @@ t = 0:1/sn:length(modulated_hspm_after_channel)/sn - 1/sn;
 
 %% Noise
 sigma = 0.1;
-sigma = [0.005, 0.03, 0];
+sigma = [0.005, 0.07, 0];
 
 noise_hspm = sigma(2)*randn(size(modulated_hspm_after_channel));
 received_hspm = modulated_hspm_after_channel + noise_hspm;
 
 noise_srrc = sigma(2)*randn(size(modulated_SRRC_after_channel));
 received_srrc = modulated_SRRC_after_channel + noise_srrc;
+
+hspm_snr = 10*log10(hspm_pulse_energy./sigma(2));
+srrc_snr = 10*log10(srrc_pulse_energy./sigma(2));
 
 %% Matched filter for HSPM
 pulse = 0:Ts:T - Ts;
@@ -115,7 +122,7 @@ srrc_matched_filter = srrc_matched_filter(1:end-1);
 matched_output_srrc = conv(received_srrc, srrc_matched_filter);
 
 %% Equalizer
-h = [1, 1/2, 3/4, -2/7];
+h = channel;
 eq_zf_hspm = ZF_Equalizer(matched_output_hspm, upsample(h, 32));
 eq_zf_srrc = ZF_Equalizer(matched_output_srrc, upsample(h, 32));
 eq_mmse_hspm = MMSE_Equalizer(matched_output_hspm, upsample(h, 32), sigma(2));
@@ -164,10 +171,39 @@ decimal_mmse_hspm = bi2de(matrix8Bits_mmse_hspm);
 decimal_mmse_srrc = bi2de(matrix8Bits_mmse_srrc);
 
 %% Reshape the decimal matrix into 8x8 blocks
-% Inverse reshape operation
+%% Q15:
+
+
+SNR_ZF_HSPM = snr(modulated_hspm, eq_zf_hspm(1:1:length(impulse_train)-1))
+SNR_MMSE_HSPM = snr(modulated_hspm, eq_mmse_hspm(1:1:length(impulse_train)-1))
+SNR_ZF_SRRC = snr(modulated_srrc, eq_zf_srrc(1:1:length(impulse_train) + 2*K*sn-1))
+SNR_MMSE_SRRC = snr(modulated_srrc, eq_mmse_srrc(1:1:length(impulse_train) + 2*K*sn-1))
+
+% Recovering ZF HSPM:
 resconstrucedZtres = reshape(decimal_zf_hspm, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
+title(['Recovered Image using Zero Forcing HSPM, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_ZF_HSPM)]);
+
+% Recovering MMSE HSPM:
+resconstrucedZtres = reshape(decimal_mmse_hspm, 8, 8, []);
+resconstrucedZtres = uint8(resconstrucedZtres);
+ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
+title(['Recovered Image using MMSE HSPM, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_MMSE_HSPM)]);
+
+% Recovering ZF SRRC:
+resconstrucedZtres = reshape(decimal_zf_srrc, 8, 8, []);
+resconstrucedZtres = uint8(resconstrucedZtres);
+ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
+title(['Recovered Image using Zero Forcing SRRC, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_ZF_SRRC)]);
+
+% Recovering MMSE SSRC:
+
+resconstrucedZtres = reshape(decimal_mmse_srrc, 8, 8, []);
+resconstrucedZtres = uint8(resconstrucedZtres);
+ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
+title(['Recovered Image using MMSE SRRC, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_MMSE_SRRC)]);
+
 
 
 
@@ -214,10 +250,42 @@ xlim([-K K]);
 title(['SRRC Pulse k = ' int2str(K) , '  a = ', num2str(alpha)]);
 grid on; 
 
-figure;
-freqz(srrc_pulse);
+
+ 
+figure
+K =1;
+srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+[h1, w1] = freqz(srrc_pulse);
+hold on;
+
+K =2;
+srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+[h2, w2] = freqz(srrc_pulse);
+
+K =4;
+srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+[h3, w3] = freqz(srrc_pulse);
+
+K =6;
+srrc_pulse = rcosdesign(alpha, 2*K, 32, 'sqrt');
+srrc_pulse = srrc_pulse(1:end-1);
+[h4, w4] = freqz(srrc_pulse);
 
 
+plot(abs(h1));
+hold on
+plot(abs(h2));
+plot(abs(h3));
+plot(abs(h4));
+
+xlim([0 100]);
+legend('K =1', 'K = 2', 'K = 4', 'K = 6');
+grid on;
+xlabel('Freq');
+ylabel('|H(f)|');
 
 %% Q2
 
@@ -285,12 +353,13 @@ set(gca, 'Color','w', 'XColor','black', 'YColor','black');
 set(fig, 'Color', 'white');
 title('Eye diagram for the HSPM modulated signal with channel', 'Color', 'black');
 
-%%
+%% Q7 Hsp with noise 
 % After adding noise:
 fig = eyediagram(received_hspm(32*10 + 1:end-32), 32, 1, 16, 'b-');
 set(gca, 'Color','w', 'XColor','black', 'YColor','black');
 set(fig, 'Color', 'white');
-title('Eye diagram for the HSPM modulated signal with noise', 'Color', 'black');
+text = ['Eye diagram for the HSPM modulated signal with noise = ', num2str(sigma(2))];
+title(text , 'Color', 'black');
 
 %% Eye Diagrams for SRRC:
 
@@ -300,6 +369,7 @@ set(gca, 'Color','w', 'XColor','black', 'YColor','black');
 set(fig, 'Color', 'white');
 title('Eye diagram for the SRRC modulated signal', 'Color', 'black');
 
+%%
 % After convolving with the channel"
 fig = eyediagram(modulated_SRRC_after_channel(32*10 + 1:end-32*10), 32, 32, 0, 'b-');
 set(gca, 'Color','w', 'XColor','black', 'YColor','black');
@@ -310,8 +380,8 @@ title('Eye diagram for the SRRC modulated signal with channel', 'Color', 'black'
 fig = eyediagram(received_srrc(32*10 + 1:end-32*10), 32, 32, 0, 'b-');
 set(gca, 'Color','w', 'XColor','black', 'YColor','black');
 set(fig, 'Color', 'white');
-title('Eye diagram for the SRRC modulated signal with noise', 'Color', 'black');
-
+text = ['Eye diagram for the SRRC modulated signal with noise = ', num2str(sigma(2))];
+title(text , 'Color', 'black');
 %% Matched filter
 
 %% Q8
@@ -333,7 +403,7 @@ freqz(hspm_pulse);
 
 
 
-%% Q1 SRRC
+%% Q8 SRRC
 alpha = 0.5;
 K = 6;
 pulse = -K*T:Ts:K*T - Ts;
@@ -388,9 +458,11 @@ impulse_resp = ZF_Equalizer(impulse', h);
 
 figure;
 stem(impulse_resp);
+title('Impulse Response of the Zero-Forcing Equalizer')
 
 figure;
 freqz(impulse_resp);
+title("Frequency Response of the Zero-Forcing Equalizer")
 
 %%
 
@@ -406,7 +478,7 @@ set(fig, 'Color', 'white');
 title(['Eye diagram for the output of ZF equalizer for HSP modulated signal with noise level = ', num2str(sigma(2))], 'Color', 'black');
 
  
-%% SRRC
+%% Q11 SRRC
 
 eq_zf_srrc = ZF_Equalizer(matched_output_srrc, upsample(h, 32));
 fig = eyediagram(eq_zf_srrc(512:floor(length(eq_zf_srrc)/16)), 32, 32, 0, 'b-');
@@ -414,19 +486,21 @@ set(gca, 'Color','w', 'XColor','black', 'YColor','black');
 set(fig, 'Color', 'white');
 title(['Eye diagram for the output of ZF equalizer for SRRC modulated signal with noise level = ', num2str(sigma(2))], 'Color', 'black');
 
-%% Q12
 
-%% MMSE 
+
+%% Q12
+% MMSE 
 h = [1, 1/2, 3/4, -2/7];
 impulse = cat(1,1,zeros(800,1));
 impulse_resp = MMSE_Equalizer(impulse', h, 0.01);
 
 figure;
 stem(impulse_resp);
-title('Impulse reponse of the MMSE filter');
+title('Impulse reponse of the MMSE Equalizer');
 
 figure;
 freqz(impulse_resp);
+title('Frequency Response of MMSE Equalizer')
 
 %% Q13
 

@@ -70,17 +70,18 @@ modulated_srrc = conv(srrc_pulse, impulse_train);
 % plot(modulated_srrc)
 
 %% Channel:
-channel_t = Channel3(T, 32);
-t = 0:1/sn:length(channel_t)/sn - 1/sn;
+channel = Channel3();
+channel_power_gain = norm(channel);
+channel_t = upsample(channel, sn);
 
-% figure;
-% stem(t, channel_t);
-% xlabel('Time (t)');
-% ylabel('h(t)');
-% title('Channel impulse response');
+figure;
+stem(channel);
+xlabel('Time (t)');
+ylabel('h(t)');
+title('Channel impulse response');
 
-% figure;
-% freqz(channel_t);
+figure;
+freqz(channel);
 
 modulated_hspm_after_channel = conv(modulated_hspm, channel_t);
 
@@ -91,7 +92,7 @@ t = 0:1/sn:length(modulated_hspm_after_channel)/sn - 1/sn;
 
 %% Noise
 sigma = 0.1;
-sigma = [0.005, 0.01, 0];
+sigma = [0.005, 0.3, 0];
 
 noise_hspm = sigma(2)*randn(size(modulated_hspm_after_channel));
 received_hspm = modulated_hspm_after_channel + noise_hspm;
@@ -121,7 +122,7 @@ srrc_matched_filter = srrc_matched_filter(1:end-1);
 matched_output_srrc = conv(received_srrc, srrc_matched_filter);
 
 %% Equalizer
-h = [1, 1/2, 3/4, -2/7];
+h = channel;
 eq_zf_hspm = ZF_Equalizer(matched_output_hspm, upsample(h, 32));
 eq_zf_srrc = ZF_Equalizer(matched_output_srrc, upsample(h, 32));
 eq_mmse_hspm = MMSE_Equalizer(matched_output_hspm, upsample(h, 32), sigma(2));
@@ -182,33 +183,26 @@ SNR_MMSE_SRRC = snr(modulated_srrc, eq_mmse_srrc(1:1:length(impulse_train) + 2*K
 resconstrucedZtres = reshape(decimal_zf_hspm, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(['Recovered Image using Zero Forcing HSPM, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_ZF_HSPM)]);
+title(['Recovered Image using Zero Forcing HSPM, Noise power = ', num2str(sigma(2))]);
 
 % Recovering MMSE HSPM:
 resconstrucedZtres = reshape(decimal_mmse_hspm, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(['Recovered Image using MMSE HSPM, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_MMSE_HSPM)]);
+title(['Recovered Image using MMSE HSPM, Noise power = ', num2str(sigma(2))]);
 
 % Recovering ZF SRRC:
 resconstrucedZtres = reshape(decimal_zf_srrc, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(['Recovered Image using Zero Forcing SRRC, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_ZF_SRRC)]);
+title(['Recovered Image using Zero Forcing SRRC, Noise power = ', num2str(sigma(2))]);
 
 % Recovering MMSE SSRC:
 
 resconstrucedZtres = reshape(decimal_mmse_srrc, 8, 8, []);
 resconstrucedZtres = uint8(resconstrucedZtres);
 ImagePostProcess_color(resconstrucedZtres,r,c,m,n,minval,maxval);
-title(['Recovered Image using MMSE SRRC, Noise power = ', num2str(sigma(2)),  ', SNR = ', num2str(SNR_MMSE_SRRC)]);
-
-
-
-
-
-
-
+title(['Recovered Image using MMSE SRRC, Noise power = ', num2str(sigma(2))]);
 
 
 
