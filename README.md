@@ -1,4 +1,4 @@
-# Ditital Communication Modeling
+# Ditital Communication System Modeling
  A small digital system modeling.
 
  This project consists the following parts:
